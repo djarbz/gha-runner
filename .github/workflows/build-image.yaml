@@ -65,7 +65,7 @@ jobs:
         id: runner_info
         run: |
           # Run the command, redirecting stderr to stdout to capture all log output
-          RUNNER_OUTPUT=$(docker compose exec runner_1 ./bin/Runner.Listener --version 2>&1)
+          RUNNER_OUTPUT=$(docker run --rm ghcr.io/actions/actions-runner:latest ./bin/Runner.Listener --version 2>&1)
 
           # Extract the Version and Commit values
           VERSION=$(echo "$RUNNER_OUTPUT" | grep 'Version:' | awk -F': ' '{print $2}')

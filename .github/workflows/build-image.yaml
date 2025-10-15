@@ -1,4 +1,4 @@
-name: Build Image UBI Builder
+name: Build & Publish Github Action Runner Image
 
 on:
   workflow_dispatch:

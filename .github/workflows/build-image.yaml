@@ -17,8 +17,8 @@ env:
 
 jobs:
   lint:
-    #runs-on: ubuntu-latest
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
+    #runs-on: [self-hosted, linux]
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
@@ -32,8 +32,8 @@ jobs:
 
   build:
     name: Build Github Action Runner Image
-    #runs-on: ubuntu-latest
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
+    #runs-on: [self-hosted, linux]
     container:
       image: registry.access.redhat.com/ubi9/ubi
       # Volume mount to workaround for https://github.com/redhat-actions/podman-login/issues/42 since the docker config from the host doesn't come up to the container

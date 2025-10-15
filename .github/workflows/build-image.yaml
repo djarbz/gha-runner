@@ -88,7 +88,7 @@ jobs:
           # Tags: latest ${{ steps.runner_info.outputs.version }} ${{ steps.runner_info.outputs.commit }} YYMMDD SHA
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=${{ steps.runner_info.outputs.version }},enable={{is_default_branch}}
+            type=raw,value=v${{ steps.runner_info.outputs.version }},enable={{is_default_branch}}
             type=raw,value=${{ steps.runner_info.outputs.commit }},enable={{is_default_branch}}
             type=schedule,pattern={{date 'YYYYMMDD' tz='America/Chicago'}},enable={{is_default_branch}}
             type=sha

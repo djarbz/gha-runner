@@ -65,7 +65,7 @@ jobs:
         id: runner_info
         run: |
           # Run the command, redirecting stderr to stdout to capture all log output
-          RUNNER_OUTPUT=$(docker run --rm ghcr.io/actions/actions-runner:latest ./bin/Runner.Listener --version 2>&1)
+          RUNNER_OUTPUT=$(podman run --rm ghcr.io/actions/actions-runner:latest ./bin/Runner.Listener --version 2>&1)
 
           # Extract the Version and Commit values
           VERSION=$(echo "$RUNNER_OUTPUT" | grep 'Version:' | awk -F': ' '{print $2}')
@@ -79,7 +79,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "commit=$COMMIT" >> $GITHUB_OUTPUT
 
-      - name: Extract metadata (tags, labels) for Docker
+      - name: Extract metadata (tags, labels) for container image
         id: meta
         uses: docker/metadata-action@v5
         with:

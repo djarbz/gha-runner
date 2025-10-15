@@ -1,0 +1,108 @@
+name: Build Image UBI Builder
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "35 3 * * *" # WINTER (CST): 9:35PM  Summer (CDT): 10:35PM
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/build-image.yaml"
+      - "Dockerfile"
+      - "gha-runner.sh"
+
+env:
+  CONTAINERFILE: Dockerfile
+
+jobs:
+  lint:
+    #runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: lint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ env.CONTAINERFILE }}
+
+  build:
+    name: Build Github Action Runner Image
+    #runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
+    container:
+      image: registry.access.redhat.com/ubi9/ubi
+      # Volume mount to workaround for https://github.com/redhat-actions/podman-login/issues/42 since the docker config from the host doesn't come up to the container
+      options: --privileged -v /github/home/.docker/:/github/home/.docker/:rw
+    needs: lint
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Clone the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get container tools in UBI builder
+        run: dnf -y install podman buildah skopeo
+
+      - name: Log in to the GitHub Container registry
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ghcr.io/${{ github.repository }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          # https://github.com/redhat-actions/podman-login/issues/41
+          auth_file_path: "/run/containers/0/auth.json"
+
+      - name: Get Upstream Runner Version and Commit
+        id: runner_info
+        run: |
+          # Run the command, redirecting stderr to stdout to capture all log output
+          RUNNER_OUTPUT=$(docker compose exec runner_1 ./bin/Runner.Listener --version 2>&1)
+
+          # Extract the Version and Commit values
+          VERSION=$(echo "$RUNNER_OUTPUT" | grep 'Version:' | awk -F': ' '{print $2}')
+          COMMIT=$(echo "$RUNNER_OUTPUT" | grep 'Commit:' | awk -F': ' '{print $2}')
+
+          # For debugging: print the extracted values to the workflow log
+          echo "Extracted Version: $VERSION"
+          echo "Extracted Commit: $COMMIT"
+
+          # Set the values as step outputs for subsequent steps
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "commit=$COMMIT" >> $GITHUB_OUTPUT
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+          # Tags: latest ${{ steps.runner_info.outputs.version }} ${{ steps.runner_info.outputs.commit }} YYMMDD SHA
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.runner_info.outputs.version }},enable={{is_default_branch}}
+            type=raw,value=${{ steps.runner_info.outputs.commit }},enable={{is_default_branch}}
+            type=schedule,pattern={{date 'YYYYMMDD' tz='America/Chicago'}},enable={{is_default_branch}}
+            type=sha
+
+      - name: Use buildah build to create the image
+        id: build-image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          tags: ${{ steps.meta.outputs.tags }}
+          containerfiles: ${{ env.CONTAINERFILE }}
+
+      - name: Push to GitHub Container Repository
+        id: push-to-ghcr
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}

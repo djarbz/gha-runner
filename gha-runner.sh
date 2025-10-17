@@ -43,6 +43,7 @@ generate_runner_name() {
 # It now accepts the registration token as an argument to avoid global variables.
 cleanup() {
   local token="$1" # Accept token as the first argument. Can be empty.
+	local name="$2" # Accept the runner name as the second argument. Can be empty.
   echo "--- Performing cleanup ---"
 
   if [[ -n "${token}" ]]; then
@@ -51,9 +52,9 @@ cleanup() {
     ./config.sh remove --token "${token}" || true
   fi
 
-  if [[ -d "./_work" ]]; then
+  if [[ -n "${name}" ]] && [[ -d "./_work/${name}" ]]; then
     echo "Cleaning work directory..."
-    rm -rf "./_work/*"
+    rm -rf "./_work/${name}"
   fi
 
   echo "--- Cleanup complete ---"
@@ -102,7 +103,7 @@ main() {
 
   # Now that we have a token, redefine the trap to include it for deregistration.
   # This is the key to avoiding global variables for the cleanup function.
-  trap 'cleanup "${reg_token}"' EXIT
+  trap 'cleanup "${reg_token}" "${runner_name}"' EXIT
 
   # --- Runner Configuration ---
   echo "Configuring the runner named '${runner_name}'..."
@@ -113,6 +114,7 @@ main() {
   ./config.sh --url "https://github.com/${repository}" \
     --token "${reg_token}" \
     --name "${runner_name}" \
+		--work "./_work/${runner_name}" \
     --ephemeral \
     --unattended \
     --disableupdate

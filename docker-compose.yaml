@@ -1,26 +1,17 @@
-# Define reusable templates for dind and runner services using YAML anchors.
-x-dind-template: &dind-template
-  image: docker:dind
-  privileged: true
-  restart: always
-  hostname: docker # Set a consistent hostname for each dind instance
-  environment:
-    TZ: America/Chicago
-    DOCKER_TLS_CERTDIR: /certs
-  healthcheck:
-    test: ["CMD-SHELL", "docker version > /dev/null || exit 1"]
-    interval: 10s
-    timeout: 5s
-    retries: 5
-    start_period: 30s
-
+# Define reusable templates for the runner services using YAML anchors.
 x-runner-template: &runner-template
   image: ghcr.io/djarbz/gha-runner:latest
   restart: always
+  depends_on:
+    dind: { condition: service_healthy }
+  volumes:
+    - dind-certs-client:/certs/client:ro
+    - dind-var-lib-docker:/var/lib/docker
+    - runner-externals:/home/runner/externals
+    - runner-work:/home/runner/_work
   environment:
     TZ: America/Chicago
-    # DOCKER_HOST now points to the "in network" DIND host.
-    DOCKER_HOST: tcp://docker:2376/
+    DOCKER_HOST: tcp://dind:2376/
     DOCKER_CERT_PATH: /certs/client
     DOCKER_TLS: 1
     # These variables are loaded from the global .env file
@@ -28,37 +19,32 @@ x-runner-template: &runner-template
     REPOSITORY: ${GITHUB_REPOSITORY}
 
 services:
-  # Runner 1 Pair
-  dind_1:
-    <<: *dind-template
+  dind:
+    image: docker:dind
+    privileged: true
+    restart: always
+    environment:
+      TZ: America/Chicago
+      DOCKER_TLS_CERTDIR: /certs
+    healthcheck:
+      test: ["CMD-SHELL", "docker version > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     volumes:
-      - dind1-certs-ca:/certs/ca
-      - dind1-certs-client:/certs/client
-      - dind1-var-lib-docker:/var/lib/docker
-      - runner1-externals:/home/runner/externals
-      - runner1-work:/home/runner/_work
-    networks:
-      - runner1
+      - dind-certs-ca:/certs/ca
+      - dind-certs-client:/certs/client
+      - dind-var-lib-docker:/var/lib/docker
+      - runner-externals:/home/runner/externals
+      - runner-work:/home/runner/_work
 
-  runner_1:
+  runner1:
     <<: *runner-template
-    depends_on:
-      dind_1: { condition: service_healthy }
-    volumes:
-      - dind1-certs-client:/certs/client:ro
-      - dind1-var-lib-docker:/var/lib/docker
-      - runner1-externals:/home/runner/externals
-      - runner1-work:/home/runner/_work
-      - ./gha-runner.sh:/home/runner/gha-runner.sh:ro
-    networks:
-      - runner1
 
 volumes:
-  dind1-certs-client:
-  dind1-certs-ca:
-  dind1-var-lib-docker:
-  runner1-externals:
-  runner1-work:
-
-networks:
-  runner1:
+  dind-certs-client:
+  dind-certs-ca:
+  dind-var-lib-docker:
+  runner-externals:
+  runner-work:

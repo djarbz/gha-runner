@@ -37,7 +37,7 @@ services:
       # These variables are loaded from the global .env file
       ACCESS_TOKEN: ${ACCESS_TOKEN}
       REPOSITORY: ${GITHUB_REPOSITORY}
-    <<: *runner-template
+      # DEBUG: true
     deploy:
       mode: replicated
       replicas: 1 # Specifies the desired number of replicas

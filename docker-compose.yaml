@@ -29,6 +29,7 @@ services:
       - dind-var-lib-docker:/var/lib/docker
       - runner-externals:/home/runner/externals
       - runner-work:/home/runner/_work
+      - runner-diag:/home/runner/_diag
     environment:
       TZ: America/Chicago
       DOCKER_HOST: tcp://dind:2376/
@@ -48,3 +49,4 @@ volumes:
   dind-var-lib-docker:
   runner-externals:
   runner-work:
+  runner-diag:

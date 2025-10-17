@@ -89,13 +89,13 @@ main() {
   # Use a local variable for the token.
   local reg_token
   reg_token=$(
-    curl -fsS -X POST \
+    curl -fsSL -X POST \
       -H "Authorization: token ${access_token}" \
       -H "Accept: application/vnd.github+json" \
       "https://api.github.com/repos/${repository}/actions/runners/registration-token" | jq .token --raw-output
   )
 
-  if [[ -z "${reg_token}" ]]; then
+  if [[ -z "${reg_token}" ]] || [[ "${reg_token}" == "null" ]]; then
     echo "Error: Failed to retrieve a registration token. Check credentials and repository path." >&2
     exit 1
   fi

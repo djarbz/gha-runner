@@ -5,5 +5,21 @@ LABEL org.opencontainers.image.source="https://github.com/djarbz/gha-runner"
 LABEL org.opencontainers.image.description="A custom Self-Hosted GitHub Actions runner for single host Docker/Podman."
 LABEL org.opencontainers.image.licenses="MIT"
 
+# Switch to root to install system packages
+USER root
+
+# Install GitHub CLI (gh)
+RUN apt-get update && apt-get install -y curl \
+    && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y gh \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Switch back to the default runner user for security
+USER runner
+
 COPY --chmod=755 ./gha-runner.sh /home/runner/gha-runner.sh
 CMD ["/home/runner/gha-runner.sh"]

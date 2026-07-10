@@ -21,12 +21,12 @@ jobs:
     #runs-on: [self-hosted, linux]
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: lint
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3
         with:
           dockerfile: ${{ env.CONTAINERFILE }}
 
@@ -45,18 +45,14 @@ jobs:
 
     steps:
       - name: Clone the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Log in to the GitHub Container registry
-        uses: redhat-actions/podman-login@v1
-        with:
-          registry: ghcr.io/${{ github.repository }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          # https://github.com/redhat-actions/podman-login/issues/41
-          auth_file_path: "/run/containers/0/auth.json"
+      - name: Log in to GHCR
+        shell: bash
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Get Upstream Runner Version and Commit
         id: runner_info
@@ -78,7 +74,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) for container image
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: |
             ghcr.io/${{ github.repository }}
@@ -92,14 +88,26 @@ jobs:
 
       - name: Use buildah build to create the image
         id: build-image
-        uses: redhat-actions/buildah-build@v2
-        with:
-          tags: ${{ steps.meta.outputs.tags }}
-          containerfiles: ${{ env.CONTAINERFILE }}
+        run: |
+          # Convert the multi-line tags output into an array of -t arguments
+          TAG_ARGS=()
+          while IFS= read -r tag || [ -n "$tag" ]; do
+            if [ -n "$tag" ]; then
+              TAG_ARGS+=("--tag" "$tag")
+            fi
+          done <<< "${{ steps.meta.outputs.tags }}"
+
+          # Execute native buildah build
+          # Added --format docker to ensure broad compatibility (optional but recommended)
+          buildah bud --format docker "${TAG_ARGS[@]}" --file "${{ env.CONTAINERFILE }}" .
 
       - name: Push to GitHub Container Repository
         id: push-to-ghcr
-        uses: redhat-actions/push-to-registry@v2
-        with:
-          image: ${{ steps.build-image.outputs.image }}
-          tags: ${{ steps.build-image.outputs.tags }}
+        run: |
+          # Iterate through the multi-line tags again and push each one
+          while IFS= read -r tag || [ -n "$tag" ]; do
+            if [ -n "$tag" ]; then
+              echo "Pushing $tag..."
+              buildah push "$tag"
+            fi
+          done <<< "${{ steps.meta.outputs.tags }}"

@@ -11,18 +11,24 @@ USER root
 # Set shell to bash with pipefail to catch errors in piped commands
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Install GitHub CLI (gh)
+# Install GitHub CLI (gh) and procps (for pgrep)
 # hadolint ignore=DL3008
-RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
-    && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends gh \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+RUN <<EORUN
+curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+apt-get update
+apt-get install -y --no-install-recommends gh procps
+apt-get clean
+rm -rf /var/lib/apt/lists/*
+EORUN
 
 # Switch back to the default runner user for security
 USER runner
+
+# Add Healthcheck to monitor the Runner.Listener process
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD pgrep -f "Runner.Listener" > /dev/null || exit 1
 
 COPY --chmod=755 ./gha-runner.sh /home/runner/gha-runner.sh
 CMD ["/home/runner/gha-runner.sh"]

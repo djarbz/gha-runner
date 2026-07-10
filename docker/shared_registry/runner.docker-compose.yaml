@@ -19,6 +19,24 @@ services:
       - runner-externals:/home/runner/externals
       - runner-work:/home/runner/_work
 
+  dind-proxy:
+    image: alpine:latest
+    restart: always
+    network_mode: "service:dind"
+    depends_on:
+      dind: { condition: service_healthy }
+    # Listens on DinD's port 5000, and forwards out to the Debian Host VM's global registry
+    command: >
+      sh -c "apk add --no-cache socat &&
+      HOST_IP=$$(ip route | awk '/default/ {print $$3}') &&
+      socat TCP-LISTEN:5000,fork TCP:$${HOST_IP}:5000"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:5000/v2/"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
   runner:
     image: ghcr.io/djarbz/gha-runner:latest
     restart: always
@@ -26,25 +44,23 @@ services:
       dind: { condition: service_healthy }
     volumes:
       - dind-certs-client:/certs/client:ro
-      - dind-var-lib-docker:/var/lib/docker
+      - runner-externals:/home/runner/externals
       - runner-work:/home/runner/_work
-      - runner-diag:/home/runner/_diag
     environment:
       TZ: America/Chicago
       DOCKER_HOST: tcp://dind:2376/
       DOCKER_CERT_PATH: /certs/client
       DOCKER_TLS: 1
-      # These variables are loaded from the global .env file
       ACCESS_TOKEN: ${ACCESS_TOKEN}
       REPOSITORY: ${GITHUB_REPOSITORY}
-      DEBUG: ${DEBUG}
+      DEBUG: true
     deploy:
       mode: replicated
-      replicas: 1 # Specifies the desired number of replicas
+      replicas: ${REPLICAS}
 
 volumes:
   dind-certs-client:
   dind-certs-ca:
   dind-var-lib-docker:
+  runner-externals:
   runner-work:
-  runner-diag:

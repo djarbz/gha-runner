@@ -1,8 +1,11 @@
 {
   "cSpell.words": [
+    "CERTDIR",
     "CONTAINERFILE",
     "containerfiles",
     "dind",
-    "djarbz"
+    "djarbz",
+    "healthcheck",
+    "socat"
   ]
 }

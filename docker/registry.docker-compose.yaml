@@ -1,0 +1,82 @@
+services:
+  registry:
+    image: registry:2
+    restart: always
+    environment:
+      REGISTRY_HTTP_RELATIVEURLS: "true"
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+    volumes:
+      - registry-data:/var/lib/registry
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/v2/"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  dind:
+    image: docker:dind
+    privileged: true
+    restart: always
+    environment:
+      TZ: America/Chicago
+      DOCKER_TLS_CERTDIR: /certs
+    healthcheck:
+      test: ["CMD-SHELL", "docker version > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - dind-certs-ca:/certs/ca
+      - dind-certs-client:/certs/client
+      - dind-var-lib-docker:/var/lib/docker
+      - runner-externals:/home/runner/externals
+      - runner-work:/home/runner/_work
+
+  dind-proxy:
+    image: alpine:latest
+    restart: always
+    network_mode: "service:dind"
+    depends_on:
+      dind: { condition: service_healthy }
+      registry: { condition: service_healthy }
+    command: sh -c "apk add --no-cache socat && socat TCP-LISTEN:5000,fork TCP:registry:5000"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:5000/v2/"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  runner:
+    image: ghcr.io/djarbz/gha-runner:latest
+    restart: always
+    depends_on:
+      dind: { condition: service_healthy }
+      registry: { condition: service_healthy }
+      dind-proxy: { condition: service_healthy }
+    volumes:
+      - dind-certs-client:/certs/client:ro
+      - dind-var-lib-docker:/var/lib/docker
+      - runner-externals:/home/runner/externals
+      - runner-work:/home/runner/_work
+    environment:
+      TZ: America/Chicago
+      DOCKER_HOST: tcp://dind:2376/
+      DOCKER_CERT_PATH: /certs/client
+      DOCKER_TLS: 1
+      ACCESS_TOKEN: ${ACCESS_TOKEN}
+      REPOSITORY: ${GITHUB_REPOSITORY}
+      DEBUG: true
+    deploy:
+      mode: replicated
+      replicas: ${REPLICAS}
+
+volumes:
+  registry-data:
+  dind-certs-client:
+  dind-certs-ca:
+  dind-var-lib-docker:
+  runner-externals:
+  runner-work:

@@ -1,0 +1,20 @@
+services:
+  registry:
+    image: registry:2
+    restart: always
+    ports:
+      - "5000:5000" # Expose to the host
+    environment:
+      REGISTRY_HTTP_RELATIVEURLS: "true"
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+    volumes:
+      - registry-data:/var/lib/registry
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/v2/"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  registry-data:

@@ -4,6 +4,7 @@
     "CONTAINERFILE",
     "containerfiles",
     "dind",
+    "disableupdate",
     "djarbz",
     "dpkg",
     "EORUN",
@@ -15,6 +16,7 @@
     "pipefail",
     "procps",
     "RELATIVEURLS",
+    "rsaparams",
     "socat",
     "usermod"
   ]

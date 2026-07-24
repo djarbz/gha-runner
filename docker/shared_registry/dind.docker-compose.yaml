@@ -8,15 +8,17 @@ services:
     volumes:
       - runner-externals:/home/runner/externals
       - runner-work:/home/runner/_work
+      - runner-var-lib-docker:/var/lib/docker
     environment:
-      TZ: America/Chicago
+      TZ: ${TZ:-America/Chicago}
       ACCESS_TOKEN: ${ACCESS_TOKEN}
       REPOSITORY: ${GITHUB_REPOSITORY}
       DEBUG: true
     deploy:
       mode: replicated
-      replicas: ${REPLICAS}
+      replicas: ${REPLICAS:-1}
 
 volumes:
   runner-externals:
   runner-work:
+  runner-var-lib-docker:

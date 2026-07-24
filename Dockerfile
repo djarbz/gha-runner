@@ -16,7 +16,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN <<EORUN
 # 1. Install prerequisites (iptables is required for DinD networking)
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates curl gnupg procps iptables sudo socat
+apt-get install -y --no-install-recommends ca-certificates curl gnupg procps iptables sudo socat iproute2
 
 # 2. Add GitHub CLI repository
 curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg

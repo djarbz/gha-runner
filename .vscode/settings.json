@@ -18,6 +18,7 @@
     "RELATIVEURLS",
     "rsaparams",
     "socat",
+    "tmpfs",
     "usermod"
   ]
 }

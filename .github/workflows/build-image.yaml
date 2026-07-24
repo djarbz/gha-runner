@@ -11,6 +11,7 @@ on:
       - ".github/workflows/build-image.yaml"
       - "Dockerfile"
       - "gha-runner.sh"
+      - "entrypoint.sh"
 
 env:
   CONTAINERFILE: Dockerfile

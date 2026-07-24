@@ -5,6 +5,8 @@ services:
     privileged: true
     extra_hosts:
       - "registry.local:host-gateway"
+    tmpfs:
+      - /var/run
     volumes:
       - runner-externals:/home/runner/externals
       - runner-work:/home/runner/_work

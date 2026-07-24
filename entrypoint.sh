@@ -13,9 +13,6 @@ sudo bash -c 'cat <<EOF > /etc/docker/daemon.json
 }
 EOF'
 
-# Remove stale PID/socket files from previous ephemeral runs
-sudo rm -f /var/run/docker.pid /var/run/docker.sock
-
 # Start the Docker daemon and explicitly route stdout/stderr to the container's PID 1 log stream
 # By explicitly writing to /proc/1/fd/1 (Standard Out) and /proc/1/fd/2 (Standard Error),
 #   you hardcode the daemon's output directly into the Docker logging engine itself.

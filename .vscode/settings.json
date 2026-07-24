@@ -5,7 +5,17 @@
     "containerfiles",
     "dind",
     "djarbz",
+    "dpkg",
+    "EORUN",
+    "githubcli",
     "healthcheck",
-    "socat"
+    "keyrings",
+    "NOPASSWD",
+    "pgrep",
+    "pipefail",
+    "procps",
+    "RELATIVEURLS",
+    "socat",
+    "usermod"
   ]
 }

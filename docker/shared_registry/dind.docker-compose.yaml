@@ -10,7 +10,7 @@ services:
     volumes:
       - runner-externals:/home/runner/externals
       - runner-work:/home/runner/_work
-      - runner-var-lib-docker:/var/lib/docker
+      - /var/lib/docker # Required to be an anonymous volume
     environment:
       TZ: ${TZ:-America/Chicago}
       ACCESS_TOKEN: ${ACCESS_TOKEN}
@@ -23,4 +23,3 @@ services:
 volumes:
   runner-externals:
   runner-work:
-  runner-var-lib-docker:

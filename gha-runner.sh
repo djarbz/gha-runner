@@ -59,6 +59,19 @@ cleanup() {
 
   # Cleanup leftover local state
   rm -f .runner .credentials .credentials_rsaparams .path .service || true
+  
+  # --- NEW: Orphaned Volume Cleanup ---
+  echo "Cleaning up orphaned container volumes..."
+  
+  # Prune Podman volumes if installed
+  if command -v podman &> /dev/null; then
+    run_as_root podman volume prune -f || true
+  fi
+  
+  # Prune Docker volumes if installed
+  if command -v docker &> /dev/null; then
+    run_as_root docker volume prune -f || true
+  fi
 
   echo "--- Cleanup complete ---"
 }
@@ -103,7 +116,7 @@ main() {
   reg_token=$(echo "${token_request}" | jq .token --raw-output)
 
   # Checks if the DEBUG variable is set and not empty.
-  if [[ -n ${DEBUG} ]]; then
+  if [[ -n ${DEBUG:-} ]]; then
     echo "${token_request}" | jq
   fi
 

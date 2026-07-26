@@ -10,7 +10,8 @@ services:
     volumes:
       - runner-externals:/home/runner/externals
       - runner-work:/home/runner/_work
-      - /var/lib/docker # Required to be an anonymous volume
+      - /var/lib/docker       # Anon Volume bypasses limits for Docker-in-Docker
+      - /var/lib/containers   # Anon Volume bypasses limits for Podman/Buildah-in-Docker
     environment:
       TZ: ${TZ:-America/Chicago}
       ACCESS_TOKEN: ${ACCESS_TOKEN}

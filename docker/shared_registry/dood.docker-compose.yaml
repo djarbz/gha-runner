@@ -5,8 +5,6 @@ services:
     extra_hosts:
       - "registry.local:host-gateway"
     volumes:
-      - runner-externals:/home/runner/externals
-      - runner-work:/home/runner/_work
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       TZ: ${TZ:-America/Chicago}
@@ -16,7 +14,3 @@ services:
     deploy:
       mode: replicated
       replicas: ${REPLICAS:-1}
-
-volumes:
-  runner-externals:
-  runner-work:

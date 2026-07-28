@@ -11,10 +11,6 @@ USER root
 # Set shell to bash with pipefail to catch errors in piped commands
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Backup the built-in externals so they aren't lost when the host bind-mounts an empty directory
-RUN cp -a /home/runner/externals /home/runner/externals_backup && \
-    chown -R runner:docker /home/runner/externals_backup
-
 # Install GitHub CLI (gh), procps, iptables, and Docker
 # hadolint ignore=DL3008
 RUN <<EORUN

@@ -54,22 +54,23 @@ cleanup() {
 
   if [[ -n ${name} ]] && [[ -d "./_work/${name}" ]]; then
     echo "Cleaning work directory..."
-    rm -rf "./_work/${name}"
+    # Add run_as_root so it bypasses permission denied errors
+    run_as_root rm -rf "./_work/${name}"
   fi
 
   # Cleanup leftover local state
   rm -f .runner .credentials .credentials_rsaparams .path .service || true
-  
-  # --- NEW: Orphaned Volume Cleanup ---
+
+  # --- Orphaned Volume Cleanup ---
   echo "Cleaning up orphaned container volumes..."
-  
+
   # Prune Podman volumes if installed
-  if command -v podman &> /dev/null; then
+  if command -v podman &>/dev/null; then
     run_as_root podman volume prune -f || true
   fi
-  
+
   # Prune Docker volumes if installed
-  if command -v docker &> /dev/null; then
+  if command -v docker &>/dev/null; then
     run_as_root docker volume prune -f || true
   fi
 
@@ -134,8 +135,14 @@ main() {
 
   # --- Runner Configuration ---
   echo "Configuring the runner named '${runner_name}'..."
-  # Use the helper to avoid running 'sudo' as the root user.
-  run_as_root chown -R "$(id -u):999" ./
+  # Take ownership of the base directory (non-recursive)
+  run_as_root chown "$(id -u):999" .
+
+  # Create the unique work directory for this specific runner
+  mkdir -p "./_work/${runner_name}"
+
+  # Recursively chown ONLY this runner's isolated workspace
+  run_as_root chown -R "$(id -u):999" "./_work/${runner_name}"
 
   # Configure the runner.
   ./config.sh --url "https://github.com/${repository}" \

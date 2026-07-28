@@ -36,6 +36,10 @@ apt-get clean
 rm -rf /var/lib/apt/lists/*
 EORUN
 
+# Backup the built-in externals so they aren't lost when the host bind-mounts an empty directory
+RUN cp -a /home/runner/externals /home/runner/externals_backup && \
+    chown -R runner:docker /home/runner/externals_backup
+
 # Switch back to the default runner user for security
 USER runner
 

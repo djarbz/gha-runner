@@ -5,7 +5,7 @@ set -e
 # CONFIGURATION
 # ==========================================
 RETENTION_DAYS=30
-GLOBAL_REGISTRY_DIR="/docker/global-registry"
+GLOBAL_REGISTRY_DIR="/docker/build-cache"
 LOG_TAG="gha-runner-cleanup"
 # ==========================================
 

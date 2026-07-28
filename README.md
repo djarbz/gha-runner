@@ -1,55 +1,48 @@
 # gha-runner
 
 **CREATE** `Github PAT: Fine-grained tokens`\
-**SET** *PAT* `Actions: RW`\
-**SET** *PAT* `Administration: RW` NOTE: Need to verify if `W` is needed.\
-**SET** `.env` with your Github *PAT*\
-**SET** `.env` with your Github Repository `namespace/repo`\
-**SET** `.env` with the number of `REPLICAS` for each project.\
-**RUN** `docker compose up -d; docker compose logs -f`\
-**SET** *WORKFLOW* *JOB* `runs-on: [self-hosted, linux]`
+**SET** _PAT_ `Actions: RW`\
+**SET** _PAT_ `Administration: RW` NOTE: Need to verify if `W` is needed.\
+**SET** `.env` with your Github _PAT_
+**SET** `.env` with your Github Repository `namespace/repo`
+**SET** `.env` with the number of `REPLICAS` for each project.
+**RUN** `docker compose up -d; docker compose logs -f`
+**SET** _WORKFLOW_ _JOB_ `runs-on: [self-hosted, linux]`
 
 ---
 
 ## Architecture Overview
 
-This project provides a robust, self-hosted GitHub Actions runner environment utilizing a **Docker-in-Docker (DinD)** architecture. This setup securely isolates GitHub Actions job executions while solving standard nested-container caching issues by routing all build caches to a single, globally shared registry on the host VM.
+This project provides a robust, self-hosted GitHub Actions runner environment utilizing a **Docker-out-of-Docker (DooD)** architecture. By passing the host's Docker socket into the runner container, it securely controls the host's Docker daemon. This setup takes full advantage of native host performance and storage caching while routing build caches to a single, globally shared registry on the host VM.
 
 ### Component Breakdown
 
 The architecture is split into two primary components: the Global Registry and the Runner Stacks.
 
-**1. Global Shared Registry (`docker/shared_registry/registry.docker-compose.yaml`)**
+**1. Global Shared Registry (`example_layout/build-cache/registry.docker-compose.yaml`)**
+Runs a single central `registry:2` container directly on the host VM, exposing port `5000`. This provides a single deduplicated cache layer for all runner stacks, drastically speeding up build times for workflows relying on native Docker caching.
 
-* Runs a single central `registry:2` container directly on the host VM, exposing port `5000`.
-* This provides a single deduplicated cache layer for all runner stacks, drastically speeding up build times for workflows relying on tools like `buildah` and `buildx`.
+**2. Runner Stack (`example_layout/runner.template.docker-compose.yaml`)**
+Each repository or runner namespace gets its own stack composed of a single, highly-efficient `runner` service. It runs the core worker utilizing the custom `ghcr.io/djarbz/gha-runner:latest` image. Instead of nested containers, it mounts the host's `/var/run/docker.sock`, allowing the runner to spawn ephemeral container jobs directly on the host machine using native storage.
 
-**2. Runner Stack (`docker/shared_registry/runner.docker-compose.yaml`)**
-Each repository or runner namespace gets its own stack composed of three tightly integrated services:
+It is recommended to save this structure in your workspace root directory and link the template into each project.
 
-* **`dind`**: A privileged `docker:dind` container that acts as the isolated Docker daemon for this specific runner stack. It prevents workflow jobs from colliding or gaining access to the host's root filesystem.
-* **`runner`**: The core worker running the custom `ghcr.io/djarbz/gha-runner:latest` image. It connects securely to the `dind` daemon via TLS on port `2376` and shares specific path volumes (like `runner-externals` and `runner-work`) to ensure GitHub Actions' bundled Node.js binaries and cloned repositories are mapped correctly into job containers.
-* **`dind-proxy`**: An Alpine-based networking proxy that bridges the DinD isolation barrier. Because job containers run *inside* the `dind` network, they cannot naturally resolve the host VM's global registry. This proxy sits on the gateway, uses `socat` to intercept traffic on port 5000, and dynamically routes it out to the host VM's IP address.
-
-It is recommended to save this runner in your workspace root directory and link it into each project.
-
-```bash
-root@gha-runner:/opt/gha-runners# tree
+```text
 .
-├── cleanup.sh
-├── project1/
-│   ├── .env
-│   ├── docker-compose.yaml -> ../runner.docker-compose.template.yaml
-├── project2/
-│   ├── .env
-│   ├── docker-compose.yaml -> ../runner.docker-compose.template.yaml
-├── project3/
-│   ├── .env
-│   ├── docker-compose.yaml -> ../runner.docker-compose.template.yaml
-├── global-registry/
+├── build-cache/
+│   ├── cleanup.sh
 │   └── docker-compose.yaml
+├── project01/
+│   ├── docker-compose.yaml -> ../runner.template.docker-compose.yaml
+│   └── .env
+├── project02/
+│   ├── docker-compose.yaml -> ../runner.template.docker-compose.yaml
+│   └── .env
+├── project03/
+│   ├── docker-compose.yaml -> ../runner.template.docker-compose.yaml
+│   └── .env
 ├── restart.sh
-├── runner.docker-compose.template.yaml
+├── runner.template.docker-compose.yaml
 └── update.sh
 ```
 
@@ -57,19 +50,13 @@ root@gha-runner:/opt/gha-runners# tree
 
 ## Automation & Maintenance Scripts
 
-To keep the host VM lean and automatically up-to-date, this repository includes several automated maintenance scripts located in the `scripts/` directory:
+To keep the host VM lean and automatically up-to-date, this repository includes several automated maintenance scripts located at the root and cache levels:
 
-* **`cleanup.sh`**: A smart garbage collection routine designed to prevent disk space exhaustion.
-  * It scans the global registry logs to identify active caches referenced within the last 30 days and surgically deletes abandoned caches.
-  * It executes native registry garbage collection to free up disk space.
-  * It loops through the host daemon and every running DinD container (`ancestor=docker:dind`) to run a `docker system prune`, purging temporary job containers and dangling images older than 7 days.
-* **`update.sh`**: A continuous deployment script (ideal for cron jobs) that checks for new versions of the runner.
-  * It compares the local image ID of `ghcr.io/djarbz/gha-runner:latest` against the remote registry.
-  * If an update is detected, it pulls the new image and iterates through all stack directories in `/docker` to gracefully restart them with `docker compose up -d`.
-* **`restart.sh`**: A utility script to perform a rolling restart across all runner project.
-  * It initiates restarts and then actively monitors the `healthcheck` status of all DinD containers until they report as `healthy`.
-  * Once healthy, it performs a local image prune inside the nested daemons to clear up immediate bloat.
+- **`cleanup.sh`**: A smart garbage collection routine designed to prevent disk space exhaustion. It scans the global registry logs to identify active caches referenced within the last 30 days, surgically deletes abandoned caches, executes native registry garbage collection, and runs a `docker system prune` on the host to purge temporary job containers and dangling images older than 7 days.
+- **`update.sh`**: A continuous deployment script (ideal for cron jobs) that checks for new versions of the runner. It compares the local image ID of `ghcr.io/djarbz/gha-runner:latest` against the remote registry. If an update is detected, it pulls the new image, iterates through all stack directories in `/docker/gha-runner`, and gracefully restarts them with `docker compose up -d`.
+- **`restart.sh`**: A utility script to perform a rolling restart across all runner projects. It iterates through your target directories and triggers a clean `docker compose restart` for each stack.
 
+It is recommended to schedule the `update.sh` and `cleanup.sh` scripts to run on a schedule.
 All scripts output to journald for centralized storage and access.
 
 ```bash

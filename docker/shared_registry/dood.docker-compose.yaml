@@ -1,0 +1,22 @@
+services:
+  runner:
+    image: ghcr.io/djarbz/gha-runner:latest
+    restart: always
+    extra_hosts:
+      - "registry.local:host-gateway"
+    volumes:
+      - runner-externals:/home/runner/externals
+      - runner-work:/home/runner/_work
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      TZ: ${TZ:-America/Chicago}
+      ACCESS_TOKEN: ${ACCESS_TOKEN}
+      REPOSITORY: ${GITHUB_REPOSITORY}
+      DEBUG: true
+    deploy:
+      mode: replicated
+      replicas: ${REPLICAS:-1}
+
+volumes:
+  runner-externals:
+  runner-work:

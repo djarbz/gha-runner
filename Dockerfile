@@ -9,7 +9,7 @@ LABEL org.opencontainers.image.licenses="MIT"
 USER root
 
 # Set shell to bash with pipefail to catch errors in piped commands
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 
 # Install GitHub CLI (gh), procps, iptables, and Docker
 # hadolint ignore=DL3008
